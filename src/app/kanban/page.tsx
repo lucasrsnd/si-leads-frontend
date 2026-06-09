@@ -6,12 +6,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
   DragEndEvent,
-  DragOverlay,
   DragStartEvent,
   PointerSensor,
   useSensor,
   useSensors,
-  closestCenter,
+  rectIntersection,
   useDroppable,
 } from "@dnd-kit/core";
 import {
@@ -58,20 +57,24 @@ function KanbanCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
     transition,
     isDragging,
   } = useSortable({ id: lead.id });
+
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.3 : 1,
+    transform: CSS.Translate.toString(transform),
+    transition: isDragging ? "none" : transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : "auto",
+    boxShadow: isDragging ? "0 16px 40px rgba(99,102,241,0.3)" : undefined,
+    scale: isDragging ? "1.03" : "1",
   };
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={style as any}
       {...attributes}
       {...listeners}
       onClick={onClick}
-      className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 cursor-grab active:cursor-grabbing group hover:border-indigo-400/50 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 relative overflow-hidden"
+      className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 cursor-grab active:cursor-grabbing hover:border-indigo-400/50 hover:shadow-md transition-all duration-150 relative overflow-hidden select-none"
     >
       <div
         className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
@@ -138,9 +141,9 @@ function DroppableColumn({
       <div
         ref={setNodeRef}
         className={cn(
-          "min-h-24 space-y-2.5 rounded-2xl p-2.5 border transition-colors duration-150",
+          "min-h-24 space-y-2.5 rounded-2xl p-2.5 border transition-all duration-150",
           isOver
-            ? "border-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/10"
+            ? "border-indigo-400 bg-indigo-50/60 dark:bg-indigo-900/15 scale-[1.01]"
             : "border-[var(--border)] bg-[var(--surface-2)]",
         )}
       >
@@ -159,7 +162,7 @@ function DroppableColumn({
             )}
           >
             <p className="text-xs text-[var(--text-muted)]">
-              {isOver ? "Soltar aqui" : "Sem leads"}
+              {isOver ? "↓ Soltar aqui" : "Sem leads"}
             </p>
           </div>
         )}
@@ -172,7 +175,6 @@ export default function KanbanPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { user } = useAuthStore();
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [myLeads, setMyLeads] = useState(false);
@@ -187,7 +189,7 @@ export default function KanbanPage() {
   });
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
   const filteredBoard: KanbanBoard | undefined = board
@@ -204,16 +206,11 @@ export default function KanbanPage() {
     : undefined;
 
   const allLeads = board ? Object.values(board).flat() : [];
-  const activeLead = activeId ? allLeads.find((l) => l.id === activeId) : null;
   const totalVisible = filteredBoard
     ? Object.values(filteredBoard).flat().length
     : 0;
 
-  const handleDragStart = ({ active }: DragStartEvent) =>
-    setActiveId(active.id as string);
-
   const handleDragEnd = async ({ active, over }: DragEndEvent) => {
-    setActiveId(null);
     if (!over || !board) return;
 
     const leadId = active.id as string;
@@ -290,8 +287,7 @@ export default function KanbanPage() {
         ) : (
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
+            collisionDetection={rectIntersection}
             onDragEnd={handleDragEnd}
           >
             <div
@@ -326,11 +322,6 @@ export default function KanbanPage() {
                 );
               })}
             </div>
-            <DragOverlay>
-              {activeLead ? (
-                <KanbanCard lead={activeLead} onClick={() => {}} />
-              ) : null}
-            </DragOverlay>
           </DndContext>
         )}
       </div>
