@@ -12,16 +12,16 @@ import {
   useSensor,
   useSensors,
   closestCenter,
+  useDroppable,
 } from "@dnd-kit/core";
 import {
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import toast from "react-hot-toast";
-import { Plus, MoreHorizontal, User } from "lucide-react";
+import { Plus, User } from "lucide-react";
 import { AppLayout } from "../../components/layout/AppLayout";
 import { ChatBot } from "../../components/chat/ChatBot";
 import { LeadModal } from "../../components/leads/LeadModal";
@@ -68,14 +68,16 @@ function KanbanCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
     <div
       ref={setNodeRef}
       style={style}
+      {...attributes}
+      {...listeners}
       onClick={onClick}
-      className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 cursor-pointer group hover:border-indigo-400/50 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 relative overflow-hidden"
+      className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 cursor-grab active:cursor-grabbing group hover:border-indigo-400/50 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 relative overflow-hidden"
     >
       <div
         className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
         style={{ background: COLUMN_COLORS[lead.status] }}
       />
-      <div className="flex items-start justify-between gap-2 mb-3">
+      <div className="flex items-start gap-2 mb-3">
         <div
           className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0"
           style={{
@@ -90,14 +92,6 @@ function KanbanCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
             .join("")
             .toUpperCase()}
         </div>
-        <button
-          {...attributes}
-          {...listeners}
-          onClick={(e) => e.stopPropagation()}
-          className="p-1 opacity-0 group-hover:opacity-100 transition hover:bg-[var(--surface-2)] rounded-lg cursor-grab active:cursor-grabbing"
-        >
-          <MoreHorizontal className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-        </button>
       </div>
       <p className="text-sm font-semibold text-[var(--text)] leading-snug mb-1">
         {lead.name}
@@ -160,7 +154,7 @@ function DroppableColumn({
         {leads.length === 0 && (
           <div
             className={cn(
-              "flex flex-col items-center justify-center py-8 rounded-xl border-2 border-dashed transition-colors",
+              "flex items-center justify-center py-8 rounded-xl border-2 border-dashed transition-colors",
               isOver ? "border-indigo-400" : "border-[var(--border)]",
             )}
           >
@@ -197,18 +191,23 @@ export default function KanbanPage() {
   );
 
   const filteredBoard: KanbanBoard | undefined = board
-  ? (Object.fromEntries(
-      COLUMNS.map((col) => [
-        col,
-        myLeads
-          ? (board[col] || []).filter((l) => l.assignedTo?.id === user?.id || l.userId === user?.id)
-          : board[col] || [],
-      ])
-    ) as unknown as KanbanBoard)
-  : undefined;
+    ? (Object.fromEntries(
+        COLUMNS.map((col) => [
+          col,
+          myLeads
+            ? (board[col] || []).filter(
+                (l) => l.assignedTo?.id === user?.id || l.userId === user?.id,
+              )
+            : board[col] || [],
+        ]),
+      ) as unknown as KanbanBoard)
+    : undefined;
 
   const allLeads = board ? Object.values(board).flat() : [];
   const activeLead = activeId ? allLeads.find((l) => l.id === activeId) : null;
+  const totalVisible = filteredBoard
+    ? Object.values(filteredBoard).flat().length
+    : 0;
 
   const handleDragStart = ({ active }: DragStartEvent) =>
     setActiveId(active.id as string);
@@ -241,10 +240,6 @@ export default function KanbanPage() {
       toast.error("Erro ao mover lead");
     }
   };
-
-  const totalVisible = filteredBoard
-    ? Object.values(filteredBoard).flat().length
-    : 0;
 
   return (
     <AppLayout>
