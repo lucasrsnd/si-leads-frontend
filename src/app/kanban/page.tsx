@@ -10,7 +10,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  rectIntersection,
+  pointerWithin,
   useDroppable,
 } from "@dnd-kit/core";
 import {
@@ -61,10 +61,8 @@ function KanbanCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
   const style = {
     transform: CSS.Translate.toString(transform),
     transition: isDragging ? "none" : transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.4 : 1,
     zIndex: isDragging ? 50 : "auto",
-    boxShadow: isDragging ? "0 16px 40px rgba(99,102,241,0.3)" : undefined,
-    scale: isDragging ? "1.03" : "1",
   };
 
   return (
@@ -121,7 +119,7 @@ function KanbanCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
   );
 }
 
-function DroppableColumn({
+function KanbanColumn({
   col,
   leads,
   onCardClick,
@@ -133,41 +131,62 @@ function DroppableColumn({
   const { setNodeRef, isOver } = useDroppable({ id: col });
 
   return (
-    <SortableContext
-      id={col}
-      items={leads.map((l) => l.id)}
-      strategy={verticalListSortingStrategy}
+    <div
+      ref={setNodeRef}
+      className={`flex-shrink-0 w-64 flex flex-col rounded-2xl border-2 transition-all duration-150 ${
+        isOver
+          ? "border-indigo-400 bg-indigo-50/40 dark:bg-indigo-900/10"
+          : "border-transparent"
+      }`}
     >
-      <div
-        ref={setNodeRef}
-        className={cn(
-          "min-h-24 space-y-2.5 rounded-2xl p-2.5 border transition-all duration-150",
-          isOver
-            ? "border-indigo-400 bg-indigo-50/60 dark:bg-indigo-900/15 scale-[1.01]"
-            : "border-[var(--border)] bg-[var(--surface-2)]",
-        )}
-      >
-        {leads.map((lead) => (
-          <KanbanCard
-            key={lead.id}
-            lead={lead}
-            onClick={() => onCardClick(lead.id)}
-          />
-        ))}
-        {leads.length === 0 && (
-          <div
-            className={cn(
-              "flex items-center justify-center py-8 rounded-xl border-2 border-dashed transition-colors",
-              isOver ? "border-indigo-400" : "border-[var(--border)]",
-            )}
-          >
-            <p className="text-xs text-[var(--text-muted)]">
-              {isOver ? "↓ Soltar aqui" : "Sem leads"}
-            </p>
-          </div>
-        )}
+      <div className="flex items-center gap-2 mb-3 px-1 pt-1">
+        <div
+          className="w-2.5 h-2.5 rounded-full"
+          style={{ background: COLUMN_COLORS[col] }}
+        />
+        <span className="text-sm font-semibold text-[var(--text)]">
+          {STATUS_LABELS[col]}
+        </span>
+        <span className="ml-auto text-xs font-semibold text-[var(--text-muted)] bg-[var(--surface-2)] px-2 py-0.5 rounded-full border border-[var(--border)]">
+          {leads.length}
+        </span>
       </div>
-    </SortableContext>
+
+      <SortableContext
+        id={col}
+        items={leads.map((l) => l.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        <div
+          className={cn(
+            "flex-1 min-h-32 space-y-2.5 rounded-xl p-2.5 border transition-all duration-150",
+            isOver
+              ? "border-indigo-300 bg-indigo-50/60 dark:bg-indigo-900/15"
+              : "border-[var(--border)] bg-[var(--surface-2)]",
+          )}
+        >
+          {leads.map((lead) => (
+            <KanbanCard
+              key={lead.id}
+              lead={lead}
+              onClick={() => onCardClick(lead.id)}
+            />
+          ))}
+          {leads.length === 0 && (
+            <div
+              className={cn(
+                "flex items-center justify-center h-20 rounded-lg border-2 border-dashed transition-colors",
+                isOver
+                  ? "border-indigo-400 text-indigo-400"
+                  : "border-[var(--border)] text-[var(--text-muted)]",
+              )}
+            >
+              <p className="text-xs">{isOver ? "↓ Soltar aqui" : "Vazio"}</p>
+            </div>
+          )}
+        </div>
+      </SortableContext>
+    </div>
   );
 }
 
@@ -287,40 +306,22 @@ export default function KanbanPage() {
         ) : (
           <DndContext
             sensors={sensors}
-            collisionDetection={rectIntersection}
+            collisionDetection={pointerWithin}
             onDragEnd={handleDragEnd}
           >
             <div
               className="flex gap-4 overflow-x-auto pb-4"
               style={{ minHeight: "calc(100vh - 200px)" }}
             >
-              {COLUMNS.map((col, ci) => {
-                const leads = filteredBoard?.[col] || [];
-                return (
-                  <div
-                    key={col}
-                    className={`flex-shrink-0 w-64 animate-fade-up stagger-${ci + 1}`}
-                  >
-                    <div className="flex items-center gap-2 mb-3 px-1">
-                      <div
-                        className="w-2.5 h-2.5 rounded-full"
-                        style={{ background: COLUMN_COLORS[col] }}
-                      />
-                      <span className="text-sm font-semibold text-[var(--text)]">
-                        {STATUS_LABELS[col]}
-                      </span>
-                      <span className="ml-auto text-xs font-semibold text-[var(--text-muted)] bg-[var(--surface-2)] px-2 py-0.5 rounded-full border border-[var(--border)]">
-                        {leads.length}
-                      </span>
-                    </div>
-                    <DroppableColumn
-                      col={col}
-                      leads={leads}
-                      onCardClick={(id) => setDetailId(id)}
-                    />
-                  </div>
-                );
-              })}
+              {COLUMNS.map((col, ci) => (
+                <div key={col} className={`animate-fade-up stagger-${ci + 1}`}>
+                  <KanbanColumn
+                    col={col}
+                    leads={filteredBoard?.[col] || []}
+                    onCardClick={(id) => setDetailId(id)}
+                  />
+                </div>
+              ))}
             </div>
           </DndContext>
         )}
