@@ -18,14 +18,16 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import toast from "react-hot-toast";
-import { Plus, MoreHorizontal } from "lucide-react";
+import { Plus, MoreHorizontal, User } from "lucide-react";
 import { AppLayout } from "../../components/layout/AppLayout";
 import { ChatBot } from "../../components/chat/ChatBot";
 import { LeadModal } from "../../components/leads/LeadModal";
 import { LeadDetailPanel } from "../../components/leads/LeadDetailPanel";
 import { leadsApi } from "../../lib/api";
+import { useAuthStore } from "../../lib/auth-store";
 import { Lead, LeadStatus, KanbanBoard } from "../../types";
 import { STATUS_LABELS, PRIORITY_COLORS, cn } from "../../lib/utils";
 
@@ -122,12 +124,64 @@ function KanbanCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
   );
 }
 
+function DroppableColumn({
+  col,
+  leads,
+  onCardClick,
+}: {
+  col: LeadStatus;
+  leads: Lead[];
+  onCardClick: (id: string) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: col });
+
+  return (
+    <SortableContext
+      id={col}
+      items={leads.map((l) => l.id)}
+      strategy={verticalListSortingStrategy}
+    >
+      <div
+        ref={setNodeRef}
+        className={cn(
+          "min-h-24 space-y-2.5 rounded-2xl p-2.5 border transition-colors duration-150",
+          isOver
+            ? "border-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/10"
+            : "border-[var(--border)] bg-[var(--surface-2)]",
+        )}
+      >
+        {leads.map((lead) => (
+          <KanbanCard
+            key={lead.id}
+            lead={lead}
+            onClick={() => onCardClick(lead.id)}
+          />
+        ))}
+        {leads.length === 0 && (
+          <div
+            className={cn(
+              "flex flex-col items-center justify-center py-8 rounded-xl border-2 border-dashed transition-colors",
+              isOver ? "border-indigo-400" : "border-[var(--border)]",
+            )}
+          >
+            <p className="text-xs text-[var(--text-muted)]">
+              {isOver ? "Soltar aqui" : "Sem leads"}
+            </p>
+          </div>
+        )}
+      </div>
+    </SortableContext>
+  );
+}
+
 export default function KanbanPage() {
   const router = useRouter();
   const qc = useQueryClient();
+  const { user } = useAuthStore();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [myLeads, setMyLeads] = useState(false);
 
   useEffect(() => {
     if (!localStorage.getItem("si_token")) router.push("/login");
@@ -141,6 +195,20 @@ export default function KanbanPage() {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
+
+  const filteredBoard: KanbanBoard | undefined = board
+    ? (Object.fromEntries(
+        COLUMNS.map((col) => [
+          col,
+          myLeads
+            ? (board[col] || []).filter(
+                (l) => l.assignedTo?.id === user?.id || l.userId === user?.id,
+              )
+            : board[col] || [],
+        ]),
+      ) as KanbanBoard)
+    : undefined;
+
   const allLeads = board ? Object.values(board).flat() : [];
   const activeLead = activeId ? allLeads.find((l) => l.id === activeId) : null;
 
@@ -150,38 +218,69 @@ export default function KanbanPage() {
   const handleDragEnd = async ({ active, over }: DragEndEvent) => {
     setActiveId(null);
     if (!over || !board) return;
+
     const leadId = active.id as string;
-    const newStatus = over.id as LeadStatus;
-    if (!COLUMNS.includes(newStatus)) return;
+    let targetStatus: LeadStatus;
+
+    if (COLUMNS.includes(over.id as LeadStatus)) {
+      targetStatus = over.id as LeadStatus;
+    } else {
+      const targetCol = COLUMNS.find((col) =>
+        (board[col] || []).some((l) => l.id === over.id),
+      );
+      if (!targetCol) return;
+      targetStatus = targetCol;
+    }
+
     const lead = allLeads.find((l) => l.id === leadId);
-    if (!lead || lead.status === newStatus) return;
+    if (!lead || lead.status === targetStatus) return;
+
     try {
-      await leadsApi.update(leadId, { status: newStatus });
+      await leadsApi.update(leadId, { status: targetStatus });
       qc.invalidateQueries({ queryKey: ["kanban"] });
-      toast.success(`Movido para ${STATUS_LABELS[newStatus]}`);
+      toast.success(`Movido para ${STATUS_LABELS[targetStatus]}`);
     } catch {
       toast.error("Erro ao mover lead");
     }
   };
 
+  const totalVisible = filteredBoard
+    ? Object.values(filteredBoard).flat().length
+    : 0;
+
   return (
     <AppLayout>
       <div className="space-y-5 animate-fade-up">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-bold text-[var(--text)]">Kanban</h1>
             <p className="text-[var(--text-muted)] text-sm mt-0.5">
-              {allLeads.length} leads no funil · clique para detalhes, arraste
-              para mover
+              {totalVisible} leads · clique para detalhes, arraste para mover
             </p>
           </div>
-          <button
-            onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all hover:scale-105 active:scale-95"
-            style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
-          >
-            <Plus className="w-4 h-4" /> Novo Lead
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setMyLeads(!myLeads)}
+              className={cn(
+                "flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-xl border transition-all",
+                myLeads
+                  ? "border-indigo-500 text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                  : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-2)]",
+              )}
+            >
+              <User className="w-3.5 h-3.5" />
+              Meus Leads
+            </button>
+            <button
+              onClick={() => setModalOpen(true)}
+              className="flex items-center gap-2 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all hover:scale-105 active:scale-95"
+              style={{
+                background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+              }}
+            >
+              <Plus className="w-4 h-4" /> Novo Lead
+            </button>
+          </div>
         </div>
 
         {isLoading ? (
@@ -207,7 +306,7 @@ export default function KanbanPage() {
               style={{ minHeight: "calc(100vh - 200px)" }}
             >
               {COLUMNS.map((col, ci) => {
-                const leads = board?.[col] || [];
+                const leads = filteredBoard?.[col] || [];
                 return (
                   <div
                     key={col}
@@ -225,28 +324,11 @@ export default function KanbanPage() {
                         {leads.length}
                       </span>
                     </div>
-                    <SortableContext
-                      id={col}
-                      items={leads.map((l) => l.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      <div className="min-h-24 space-y-2.5 bg-[var(--surface-2)] rounded-2xl p-2.5 border border-[var(--border)]">
-                        {leads.map((lead) => (
-                          <KanbanCard
-                            key={lead.id}
-                            lead={lead}
-                            onClick={() => setDetailId(lead.id)}
-                          />
-                        ))}
-                        {leads.length === 0 && (
-                          <div className="flex flex-col items-center justify-center py-8">
-                            <p className="text-xs text-[var(--text-muted)]">
-                              Sem leads aqui
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </SortableContext>
+                    <DroppableColumn
+                      col={col}
+                      leads={leads}
+                      onCardClick={(id) => setDetailId(id)}
+                    />
                   </div>
                 );
               })}

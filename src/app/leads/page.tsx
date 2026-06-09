@@ -12,11 +12,13 @@ import {
   Pencil,
   ChevronLeft,
   ChevronRight,
+  User,
 } from "lucide-react";
 import { AppLayout } from "../../components/layout/AppLayout";
 import { ChatBot } from "../../components/chat/ChatBot";
 import { LeadModal } from "../../components/leads/LeadModal";
 import { leadsApi } from "../../lib/api";
+import { useAuthStore } from "../../lib/auth-store";
 import { Lead, LeadStatus } from "../../types";
 import {
   STATUS_LABELS,
@@ -29,8 +31,10 @@ import {
 export default function LeadsPage() {
   const router = useRouter();
   const qc = useQueryClient();
+  const { user } = useAuthStore();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<LeadStatus | "">("");
+  const [myLeads, setMyLeads] = useState(false);
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | undefined>();
@@ -40,15 +44,16 @@ export default function LeadsPage() {
   }, []);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["leads", search, statusFilter, page],
+    queryKey: ["leads", search, statusFilter, myLeads, page],
     queryFn: () =>
       leadsApi
         .list({
           search: search || undefined,
           status: statusFilter || undefined,
+          myLeads: myLeads ? "true" : undefined,
           page,
           limit: 15,
-        })
+        } as any)
         .then((r) => r.data),
     placeholderData: (prev) => prev,
   });
@@ -86,7 +91,7 @@ export default function LeadsPage() {
   return (
     <AppLayout>
       <div className="space-y-5">
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center justify-between flex-wrap gap-3 animate-fade-up">
           <div>
             <h1 className="text-2xl font-bold text-[var(--text)]">Leads</h1>
             <p className="text-[var(--text-muted)] text-sm mt-0.5">
@@ -96,7 +101,7 @@ export default function LeadsPage() {
           <div className="flex gap-2">
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 border border-[var(--border)] hover:bg-[var(--surface-2)] text-[var(--text)] text-sm font-medium px-3 py-2 rounded-lg transition"
+              className="flex items-center gap-2 border border-[var(--border)] hover:bg-[var(--surface-2)] text-[var(--text)] text-sm font-medium px-3 py-2 rounded-xl transition"
             >
               <Download className="w-4 h-4" /> CSV
             </button>
@@ -105,15 +110,17 @@ export default function LeadsPage() {
                 setEditingLead(undefined);
                 setModalOpen(true);
               }}
-              className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
+              className="flex items-center gap-2 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-all hover:scale-105 active:scale-95"
+              style={{
+                background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+              }}
             >
               <Plus className="w-4 h-4" /> Novo Lead
             </button>
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3 animate-fade-up stagger-1">
           <div className="relative flex-1 min-w-48">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
             <input
@@ -123,7 +130,7 @@ export default function LeadsPage() {
                 setPage(1);
               }}
               placeholder="Buscar por nome, email ou telefone..."
-              className="w-full pl-9 pr-4 py-2 border border-[var(--border)] rounded-lg text-sm bg-[var(--surface)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full pl-9 pr-4 py-2.5 border border-[var(--border)] rounded-xl text-sm bg-[var(--surface)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
             />
           </div>
           <select
@@ -132,7 +139,7 @@ export default function LeadsPage() {
               setStatusFilter(e.target.value as any);
               setPage(1);
             }}
-            className="border border-[var(--border)] rounded-lg text-sm px-3 py-2 bg-[var(--surface)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="border border-[var(--border)] rounded-xl text-sm px-3 py-2.5 bg-[var(--surface)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
           >
             <option value="">Todos os status</option>
             {STATUSES.map((s) => (
@@ -141,10 +148,24 @@ export default function LeadsPage() {
               </option>
             ))}
           </select>
+          <button
+            onClick={() => {
+              setMyLeads(!myLeads);
+              setPage(1);
+            }}
+            className={cn(
+              "flex items-center gap-2 text-sm font-medium px-3 py-2.5 rounded-xl border transition-all",
+              myLeads
+                ? "border-indigo-500 text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-2)]",
+            )}
+          >
+            <User className="w-3.5 h-3.5" />
+            Meus Leads
+          </button>
         </div>
 
-        {/* Table */}
-        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] overflow-hidden">
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden animate-fade-up stagger-2">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -174,7 +195,9 @@ export default function LeadsPage() {
                       colSpan={7}
                       className="text-center py-12 text-[var(--text-muted)]"
                     >
-                      Carregando...
+                      <div className="flex justify-center">
+                        <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                      </div>
                     </td>
                   </tr>
                 ) : data?.data?.length === 0 ? (
@@ -193,14 +216,27 @@ export default function LeadsPage() {
                       className="hover:bg-[var(--surface-2)] transition-colors"
                     >
                       <td className="px-4 py-3">
-                        <p className="font-medium text-[var(--text)]">
-                          {lead.name}
-                        </p>
-                        {lead.notes && (
-                          <p className="text-xs text-[var(--text-muted)] truncate max-w-40">
-                            {lead.notes}
-                          </p>
-                        )}
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                            style={{
+                              background:
+                                "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                            }}
+                          >
+                            {lead.name[0]}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-[var(--text)]">
+                              {lead.name}
+                            </p>
+                            {lead.notes && (
+                              <p className="text-xs text-[var(--text-muted)] truncate max-w-40">
+                                {lead.notes}
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <p className="text-[var(--text-muted)]">
@@ -213,7 +249,7 @@ export default function LeadsPage() {
                       <td className="px-4 py-3">
                         <span
                           className={cn(
-                            "text-xs font-medium px-2 py-1 rounded-full",
+                            "text-xs font-semibold px-2.5 py-1 rounded-full",
                             STATUS_COLORS[lead.status],
                           )}
                         >
@@ -230,7 +266,7 @@ export default function LeadsPage() {
                           {lead.priority}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-[var(--text-muted)]">
+                      <td className="px-4 py-3 text-[var(--text-muted)] text-sm">
                         {lead.assignedTo?.name || "—"}
                       </td>
                       <td className="px-4 py-3 text-[var(--text-muted)] text-xs">
@@ -243,7 +279,7 @@ export default function LeadsPage() {
                               setEditingLead(lead);
                               setModalOpen(true);
                             }}
-                            className="p-1.5 hover:bg-[var(--surface-2)] rounded-lg transition text-[var(--text-muted)] hover:text-brand-600"
+                            className="p-1.5 hover:bg-[var(--surface-2)] rounded-lg transition text-[var(--text-muted)] hover:text-indigo-500"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
@@ -262,7 +298,6 @@ export default function LeadsPage() {
             </table>
           </div>
 
-          {/* Pagination */}
           {data && data.totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border)]">
               <p className="text-xs text-[var(--text-muted)]">
