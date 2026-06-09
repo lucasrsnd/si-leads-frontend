@@ -1,110 +1,261 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, Users, CheckCircle, XCircle, Clock, Award } from 'lucide-react';
-import { AppLayout } from '../../components/layout/AppLayout';
-import { ChatBot } from '../../components/chat/ChatBot';
-import { dashboardApi } from '../../lib/api';
-import { useAuthStore } from '../../lib/auth-store';
-import { STATUS_LABELS } from '../../lib/utils';
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import {
+  TrendingUp,
+  Users,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Award,
+  ArrowUpRight,
+} from "lucide-react";
+import { AppLayout } from "../../components/layout/AppLayout";
+import { ChatBot } from "../../components/chat/ChatBot";
+import { dashboardApi } from "../../lib/api";
+import { useAuthStore } from "../../lib/auth-store";
+import { STATUS_LABELS } from "../../lib/utils";
 
-const STATUS_CHART_COLORS = ['#3b82f6','#eab308','#a855f7','#f97316','#22c55e','#ef4444'];
+const STATUS_COLORS_CHART = [
+  "#6366f1",
+  "#f59e0b",
+  "#8b5cf6",
+  "#f97316",
+  "#22c55e",
+  "#ef4444",
+];
+
+function StatCard({ label, value, icon: Icon, color, bg, delay }: any) {
+  return (
+    <div
+      className={`bg-[var(--surface)] rounded-2xl p-5 border border-[var(--border)] card-hover animate-fade-up relative overflow-hidden`}
+      style={{ animationDelay: `${delay * 0.05}s` }}
+    >
+      <div
+        className="absolute top-0 right-0 w-24 h-24 rounded-full opacity-5 -translate-y-6 translate-x-6"
+        style={{ background: color }}
+      />
+      <div className="flex items-start justify-between mb-4">
+        <div
+          className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center`}
+        >
+          <Icon className="w-5 h-5" style={{ color }} />
+        </div>
+        <ArrowUpRight className="w-4 h-4 text-[var(--text-muted)] opacity-30" />
+      </div>
+      <p className="text-2xl font-bold text-[var(--text)] mb-0.5">{value}</p>
+      <p className="text-xs text-[var(--text-muted)] font-medium">{label}</p>
+    </div>
+  );
+}
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload?.length) {
+    return (
+      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 shadow-lg text-xs">
+        <p className="font-semibold text-[var(--text)]">{label}</p>
+        <p className="text-indigo-500">{payload[0].value} leads</p>
+      </div>
+    );
+  }
+  return null;
+};
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, init } = useAuthStore();
+  const { init } = useAuthStore();
 
   useEffect(() => {
     init();
-    if (!localStorage.getItem('si_token')) router.push('/login');
+    if (!localStorage.getItem("si_token")) router.push("/login");
   }, []);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard'],
+    queryKey: ["dashboard"],
     queryFn: () => dashboardApi.metrics().then((r) => r.data),
   });
 
-  if (isLoading) return (
-    <AppLayout>
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    </AppLayout>
-  );
-
-  const statusData = data ? Object.entries(data.byStatus).map(([k, v]) => ({
-    name: STATUS_LABELS[k as any] || k, value: v as number,
-  })) : [];
+  const statusData = data
+    ? Object.entries(data.byStatus).map(([k, v]) => ({
+        name: STATUS_LABELS[k as any] || k,
+        value: v as number,
+      }))
+    : [];
 
   const cards = [
-    { label: 'Total de Leads', value: data?.totalLeads || 0, icon: Users, color: 'text-brand-600', bg: 'bg-brand-50 dark:bg-brand-900/20' },
-    { label: 'Taxa de Conversão', value: `${data?.conversionRate || 0}%`, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' },
-    { label: 'Fechados', value: data?.byStatus?.FECHADO || 0, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' },
-    { label: 'Perdidos', value: data?.byStatus?.PERDIDO || 0, icon: XCircle, color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/20' },
-    { label: 'Qualificados', value: data?.byStatus?.QUALIFICADO || 0, icon: Award, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20' },
-    { label: 'Em Contato', value: data?.byStatus?.EM_CONTATO || 0, icon: Clock, color: 'text-yellow-600', bg: 'bg-yellow-50 dark:bg-yellow-900/20' },
+    {
+      label: "Total de Leads",
+      value: data?.totalLeads || 0,
+      icon: Users,
+      color: "#6366f1",
+      bg: "bg-indigo-50 dark:bg-indigo-900/20",
+      delay: 1,
+    },
+    {
+      label: "Taxa de Conversão",
+      value: `${data?.conversionRate || 0}%`,
+      icon: TrendingUp,
+      color: "#22c55e",
+      bg: "bg-green-50 dark:bg-green-900/20",
+      delay: 2,
+    },
+    {
+      label: "Fechados",
+      value: data?.byStatus?.FECHADO || 0,
+      icon: CheckCircle,
+      color: "#22c55e",
+      bg: "bg-green-50 dark:bg-green-900/20",
+      delay: 3,
+    },
+    {
+      label: "Perdidos",
+      value: data?.byStatus?.PERDIDO || 0,
+      icon: XCircle,
+      color: "#ef4444",
+      bg: "bg-red-50 dark:bg-red-900/20",
+      delay: 4,
+    },
+    {
+      label: "Qualificados",
+      value: data?.byStatus?.QUALIFICADO || 0,
+      icon: Award,
+      color: "#8b5cf6",
+      bg: "bg-purple-50 dark:bg-purple-900/20",
+      delay: 5,
+    },
+    {
+      label: "Em Contato",
+      value: data?.byStatus?.EM_CONTATO || 0,
+      icon: Clock,
+      color: "#f59e0b",
+      bg: "bg-amber-50 dark:bg-amber-900/20",
+      delay: 6,
+    },
   ];
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="space-y-6">
+          <div className="skeleton h-8 w-48" />
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="skeleton h-28 rounded-2xl" />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="skeleton h-64 rounded-2xl" />
+            <div className="skeleton h-64 rounded-2xl" />
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div>
+        <div className="animate-fade-up">
           <h1 className="text-2xl font-bold text-[var(--text)]">Dashboard</h1>
-          <p className="text-[var(--text-muted)] text-sm mt-0.5">Visão geral dos seus leads</p>
+          <p className="text-[var(--text-muted)] text-sm mt-0.5">
+            Visão geral dos seus leads
+          </p>
         </div>
 
-        {/* Metric Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          {cards.map(({ label, value, icon: Icon, color, bg }) => (
-            <div key={label} className="bg-[var(--surface)] rounded-xl p-4 border border-[var(--border)]">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs text-[var(--text-muted)] font-medium">{label}</p>
-                <div className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center`}>
-                  <Icon className={`w-4 h-4 ${color}`} />
-                </div>
-              </div>
-              <p className="text-2xl font-bold text-[var(--text)]">{value}</p>
-            </div>
+          {cards.map((card) => (
+            <StatCard key={card.label} {...card} />
           ))}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Bar chart */}
-          <div className="bg-[var(--surface)] rounded-xl p-5 border border-[var(--border)]">
-            <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Leads por Status</h3>
+          <div className="bg-[var(--surface)] rounded-2xl p-5 border border-[var(--border)] animate-fade-up stagger-3">
+            <h3 className="text-sm font-semibold text-[var(--text)] mb-5">
+              Leads por Status
+            </h3>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={statusData} barSize={28}>
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                  {statusData.map((_, i) => <Cell key={i} fill={STATUS_CHART_COLORS[i % STATUS_CHART_COLORS.length]} />)}
+              <BarChart data={statusData} barSize={24}>
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 10, fill: "var(--text-muted)" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 10, fill: "var(--text-muted)" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  content={<CustomTooltip />}
+                  cursor={{ fill: "var(--surface-2)", radius: 6 }}
+                />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                  {statusData.map((_, i) => (
+                    <Cell
+                      key={i}
+                      fill={STATUS_COLORS_CHART[i % STATUS_COLORS_CHART.length]}
+                    />
+                  ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Pie chart */}
-          <div className="bg-[var(--surface)] rounded-xl p-5 border border-[var(--border)]">
-            <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Distribuição por Status</h3>
+          <div className="bg-[var(--surface)] rounded-2xl p-5 border border-[var(--border)] animate-fade-up stagger-4">
+            <h3 className="text-sm font-semibold text-[var(--text)] mb-5">
+              Distribuição
+            </h3>
             <div className="flex items-center gap-4">
-              <ResponsiveContainer width="60%" height={200}>
+              <ResponsiveContainer width="55%" height={200}>
                 <PieChart>
-                  <Pie data={statusData} dataKey="value" cx="50%" cy="50%" innerRadius={50} outerRadius={80}>
-                    {statusData.map((_, i) => <Cell key={i} fill={STATUS_CHART_COLORS[i % STATUS_CHART_COLORS.length]} />)}
+                  <Pie
+                    data={statusData}
+                    dataKey="value"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={85}
+                    paddingAngle={3}
+                  >
+                    {statusData.map((_, i) => (
+                      <Cell
+                        key={i}
+                        fill={
+                          STATUS_COLORS_CHART[i % STATUS_COLORS_CHART.length]
+                        }
+                      />
+                    ))}
                   </Pie>
-                  <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
+                  <Tooltip content={<CustomTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="space-y-2 flex-1">
+              <div className="flex-1 space-y-2">
                 {statusData.map((d, i) => (
                   <div key={d.name} className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: STATUS_CHART_COLORS[i] }} />
-                    <span className="text-xs text-[var(--text-muted)] truncate">{d.name}</span>
-                    <span className="text-xs font-semibold text-[var(--text)] ml-auto">{d.value}</span>
+                    <div
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ background: STATUS_COLORS_CHART[i] }}
+                    />
+                    <span className="text-xs text-[var(--text-muted)] truncate flex-1">
+                      {d.name}
+                    </span>
+                    <span className="text-xs font-bold text-[var(--text)]">
+                      {d.value}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -112,24 +263,43 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Recent leads */}
-        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)]">
-          <div className="px-5 py-4 border-b border-[var(--border)]">
-            <h3 className="text-sm font-semibold text-[var(--text)]">Últimos Leads</h3>
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden animate-fade-up stagger-5">
+          <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-[var(--text)]">
+              Leads recentes
+            </h3>
+            <span className="text-xs text-[var(--text-muted)]">
+              Últimas entradas
+            </span>
           </div>
           <div className="divide-y divide-[var(--border)]">
-            {data?.recentLeads?.map((lead: any) => (
-              <div key={lead.id} className="px-5 py-3 flex items-center justify-between">
-                <p className="text-sm font-medium text-[var(--text)]">{lead.name}</p>
+            {data?.recentLeads?.map((lead: any, i: number) => (
+              <div
+                key={lead.id}
+                className="px-5 py-3.5 flex items-center justify-between hover:bg-[var(--surface-2)] transition animate-fade-up"
+                style={{ animationDelay: `${i * 0.05 + 0.3}s` }}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white"
+                    style={{
+                      background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                    }}
+                  >
+                    {lead.name[0]}
+                  </div>
+                  <p className="text-sm font-medium text-[var(--text)]">
+                    {lead.name}
+                  </p>
+                </div>
                 <span className="text-xs text-[var(--text-muted)]">
-                  {new Date(lead.createdAt).toLocaleDateString('pt-BR')}
+                  {new Date(lead.createdAt).toLocaleDateString("pt-BR")}
                 </span>
               </div>
             ))}
           </div>
         </div>
       </div>
-
       <ChatBot />
     </AppLayout>
   );

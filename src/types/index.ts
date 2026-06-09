@@ -1,10 +1,22 @@
-export type Role = 'ADMIN' | 'AGENT';
+export type Role = "ADMIN" | "AGENT";
 
-export type LeadStatus = 'NOVO' | 'EM_CONTATO' | 'QUALIFICADO' | 'PROPOSTA' | 'FECHADO' | 'PERDIDO';
+export type LeadStatus =
+  | "NOVO"
+  | "EM_CONTATO"
+  | "QUALIFICADO"
+  | "PROPOSTA"
+  | "FECHADO"
+  | "PERDIDO";
 
-export type Source = 'SITE' | 'INDICACAO' | 'REDES_SOCIAIS' | 'ANUNCIO' | 'WHATSAPP' | 'OUTRO';
+export type Source =
+  | "SITE"
+  | "INDICACAO"
+  | "REDES_SOCIAIS"
+  | "ANUNCIO"
+  | "WHATSAPP"
+  | "OUTRO";
 
-export type Priority = 'ALTA' | 'MEDIA' | 'BAIXA';
+export type Priority = "ALTA" | "MEDIA" | "BAIXA";
 
 export interface User {
   id: string;
@@ -32,7 +44,7 @@ export interface Lead {
   priority: Priority;
   notes?: string;
   userId?: string;
-  assignedTo?: Pick<User, 'id' | 'name' | 'email'>;
+  assignedTo?: Pick<User, "id" | "name" | "email">;
   activities?: Activity[];
   _count?: { activities: number };
   createdAt: string;
@@ -54,12 +66,12 @@ export interface DashboardMetrics {
   byStatus: Record<LeadStatus, number>;
   bySource: Record<string, number>;
   byPriority: Record<Priority, number>;
-  recentLeads: Pick<Lead, 'id' | 'name' | 'status' | 'createdAt'>[];
+  recentLeads: Pick<Lead, "id" | "name" | "status" | "createdAt">[];
   recentActivities: (Activity & { lead: { name: string } })[];
 }
 
 export interface ChatMessage {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
 }
 

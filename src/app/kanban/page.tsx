@@ -1,43 +1,122 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  DndContext, DragEndEvent, DragOverlay, DragStartEvent,
-  PointerSensor, useSensor, useSensors, closestCenter,
-} from '@dnd-kit/core';
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+} from "@dnd-kit/core";
 import {
-  SortableContext, useSortable, verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import toast from 'react-hot-toast';
-import { Plus, GripVertical } from 'lucide-react';
-import { AppLayout } from '../../components/layout/AppLayout';
-import { ChatBot } from '../../components/chat/ChatBot';
-import { LeadModal } from '../../components/leads/LeadModal';
-import { leadsApi } from '../../lib/api';
-import { Lead, LeadStatus, KanbanBoard } from '../../types';
-import { STATUS_LABELS, STATUS_COLORS, PRIORITY_COLORS, cn } from '../../lib/utils';
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import toast from "react-hot-toast";
+import { Plus, MoreHorizontal } from "lucide-react";
+import { AppLayout } from "../../components/layout/AppLayout";
+import { ChatBot } from "../../components/chat/ChatBot";
+import { LeadModal } from "../../components/leads/LeadModal";
+import { LeadDetailPanel } from "../../components/leads/LeadDetailPanel";
+import { leadsApi } from "../../lib/api";
+import { Lead, LeadStatus, KanbanBoard } from "../../types";
+import { STATUS_LABELS, PRIORITY_COLORS, cn } from "../../lib/utils";
 
-const COLUMNS: LeadStatus[] = ['NOVO', 'EM_CONTATO', 'QUALIFICADO', 'PROPOSTA', 'FECHADO', 'PERDIDO'];
+const COLUMNS: LeadStatus[] = [
+  "NOVO",
+  "EM_CONTATO",
+  "QUALIFICADO",
+  "PROPOSTA",
+  "FECHADO",
+  "PERDIDO",
+];
 
-function KanbanCard({ lead }: { lead: Lead }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lead.id });
-  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
+const COLUMN_COLORS: Record<LeadStatus, string> = {
+  NOVO: "#6366f1",
+  EM_CONTATO: "#f59e0b",
+  QUALIFICADO: "#8b5cf6",
+  PROPOSTA: "#f97316",
+  FECHADO: "#22c55e",
+  PERDIDO: "#ef4444",
+};
+
+function KanbanCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: lead.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : 1,
+  };
 
   return (
-    <div ref={setNodeRef} style={style}
-      className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing group">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-semibold text-[var(--text)] leading-snug">{lead.name}</p>
-        <GripVertical {...attributes} {...listeners} className="w-3.5 h-3.5 text-[var(--text-muted)] opacity-0 group-hover:opacity-100 flex-shrink-0 mt-0.5 cursor-grab" />
+    <div
+      ref={setNodeRef}
+      style={style}
+      onClick={onClick}
+      className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 cursor-pointer group hover:border-indigo-400/50 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 relative overflow-hidden"
+    >
+      <div
+        className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
+        style={{ background: COLUMN_COLORS[lead.status] }}
+      />
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div
+          className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0"
+          style={{
+            background: `${COLUMN_COLORS[lead.status]}20`,
+            color: COLUMN_COLORS[lead.status],
+          }}
+        >
+          {lead.name
+            .split(" ")
+            .slice(0, 2)
+            .map((n: string) => n[0])
+            .join("")
+            .toUpperCase()}
+        </div>
+        <button
+          {...attributes}
+          {...listeners}
+          onClick={(e) => e.stopPropagation()}
+          className="p-1 opacity-0 group-hover:opacity-100 transition hover:bg-[var(--surface-2)] rounded-lg cursor-grab active:cursor-grabbing"
+        >
+          <MoreHorizontal className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+        </button>
       </div>
-      {lead.phone && <p className="text-xs text-[var(--text-muted)] mt-1">{lead.phone}</p>}
-      {lead.email && <p className="text-xs text-[var(--text-muted)] truncate">{lead.email}</p>}
-      <div className="flex items-center gap-2 mt-2">
-        <span className={cn('text-xs font-medium', PRIORITY_COLORS[lead.priority])}>● {lead.priority}</span>
-        {lead.source && <span className="text-xs text-[var(--text-muted)]">{lead.source.replace('_', ' ')}</span>}
+      <p className="text-sm font-semibold text-[var(--text)] leading-snug mb-1">
+        {lead.name}
+      </p>
+      {lead.phone && (
+        <p className="text-xs text-[var(--text-muted)]">{lead.phone}</p>
+      )}
+      <div className="flex items-center justify-between mt-3">
+        <span
+          className={cn(
+            "text-xs font-semibold",
+            PRIORITY_COLORS[lead.priority],
+          )}
+        >
+          ● {lead.priority}
+        </span>
+        {lead.source && (
+          <span className="text-xs text-[var(--text-muted)] bg-[var(--surface-2)] px-2 py-0.5 rounded-full">
+            {lead.source.replace("_", " ")}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -48,106 +127,155 @@ export default function KanbanPage() {
   const qc = useQueryClient();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingLead, setEditingLead] = useState<Lead | undefined>();
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!localStorage.getItem('si_token')) router.push('/login');
+    if (!localStorage.getItem("si_token")) router.push("/login");
   }, []);
 
   const { data: board, isLoading } = useQuery<KanbanBoard>({
-    queryKey: ['kanban'],
+    queryKey: ["kanban"],
     queryFn: () => leadsApi.kanban().then((r) => r.data),
   });
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
-
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
   const allLeads = board ? Object.values(board).flat() : [];
   const activeLead = activeId ? allLeads.find((l) => l.id === activeId) : null;
 
-  const handleDragStart = ({ active }: DragStartEvent) => setActiveId(active.id as string);
+  const handleDragStart = ({ active }: DragStartEvent) =>
+    setActiveId(active.id as string);
 
   const handleDragEnd = async ({ active, over }: DragEndEvent) => {
     setActiveId(null);
     if (!over || !board) return;
-
     const leadId = active.id as string;
     const newStatus = over.id as LeadStatus;
-
     if (!COLUMNS.includes(newStatus)) return;
-
     const lead = allLeads.find((l) => l.id === leadId);
     if (!lead || lead.status === newStatus) return;
-
     try {
       await leadsApi.update(leadId, { status: newStatus });
-      qc.invalidateQueries({ queryKey: ['kanban'] });
-      qc.invalidateQueries({ queryKey: ['leads'] });
-      toast.success(`Lead movido para ${STATUS_LABELS[newStatus]}`);
+      qc.invalidateQueries({ queryKey: ["kanban"] });
+      toast.success(`Movido para ${STATUS_LABELS[newStatus]}`);
     } catch {
-      toast.error('Erro ao mover lead');
+      toast.error("Erro ao mover lead");
     }
   };
 
-  if (isLoading) return (
-    <AppLayout>
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    </AppLayout>
-  );
-
   return (
     <AppLayout>
-      <div className="space-y-4">
+      <div className="space-y-5 animate-fade-up">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-[var(--text)]">Kanban</h1>
-            <p className="text-[var(--text-muted)] text-sm mt-0.5">Arraste os cards para mudar o status</p>
+            <p className="text-[var(--text-muted)] text-sm mt-0.5">
+              {allLeads.length} leads no funil · clique para detalhes, arraste
+              para mover
+            </p>
           </div>
-          <button onClick={() => { setEditingLead(undefined); setModalOpen(true); }}
-            className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-2 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all hover:scale-105 active:scale-95"
+            style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
+          >
             <Plus className="w-4 h-4" /> Novo Lead
           </button>
         </div>
 
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          <div className="flex gap-4 overflow-x-auto pb-4 min-h-[calc(100vh-200px)]">
-            {COLUMNS.map((col) => {
-              const leads = board?.[col] || [];
-              return (
-                <div key={col} id={col} className="flex-shrink-0 w-64">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full', STATUS_COLORS[col])}>
+        {isLoading ? (
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {COLUMNS.map((col) => (
+              <div key={col} className="flex-shrink-0 w-64 space-y-3">
+                <div className="skeleton h-6 w-32" />
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="skeleton h-28 w-full rounded-2xl" />
+                ))}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div
+              className="flex gap-4 overflow-x-auto pb-4"
+              style={{ minHeight: "calc(100vh - 200px)" }}
+            >
+              {COLUMNS.map((col, ci) => {
+                const leads = board?.[col] || [];
+                return (
+                  <div
+                    key={col}
+                    className={`flex-shrink-0 w-64 animate-fade-up stagger-${ci + 1}`}
+                  >
+                    <div className="flex items-center gap-2 mb-3 px-1">
+                      <div
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{ background: COLUMN_COLORS[col] }}
+                      />
+                      <span className="text-sm font-semibold text-[var(--text)]">
                         {STATUS_LABELS[col]}
                       </span>
-                      <span className="text-xs text-[var(--text-muted)] font-medium">{leads.length}</span>
+                      <span className="ml-auto text-xs font-semibold text-[var(--text-muted)] bg-[var(--surface-2)] px-2 py-0.5 rounded-full border border-[var(--border)]">
+                        {leads.length}
+                      </span>
                     </div>
+                    <SortableContext
+                      id={col}
+                      items={leads.map((l) => l.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="min-h-24 space-y-2.5 bg-[var(--surface-2)] rounded-2xl p-2.5 border border-[var(--border)]">
+                        {leads.map((lead) => (
+                          <KanbanCard
+                            key={lead.id}
+                            lead={lead}
+                            onClick={() => setDetailId(lead.id)}
+                          />
+                        ))}
+                        {leads.length === 0 && (
+                          <div className="flex flex-col items-center justify-center py-8">
+                            <p className="text-xs text-[var(--text-muted)]">
+                              Sem leads aqui
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </SortableContext>
                   </div>
-
-                  {/* Drop zone */}
-                  <SortableContext id={col} items={leads.map((l) => l.id)} strategy={verticalListSortingStrategy}>
-                    <div className="min-h-20 space-y-2 bg-[var(--surface-2)] rounded-xl p-2">
-                      {leads.map((lead) => <KanbanCard key={lead.id} lead={lead} />)}
-                      {leads.length === 0 && (
-                        <p className="text-xs text-[var(--text-muted)] text-center py-6">Sem leads aqui</p>
-                      )}
-                    </div>
-                  </SortableContext>
-                </div>
-              );
-            })}
-          </div>
-
-          <DragOverlay>
-            {activeLead ? <KanbanCard lead={activeLead} /> : null}
-          </DragOverlay>
-        </DndContext>
+                );
+              })}
+            </div>
+            <DragOverlay>
+              {activeLead ? (
+                <KanbanCard lead={activeLead} onClick={() => {}} />
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        )}
       </div>
 
       {modalOpen && (
-        <LeadModal lead={editingLead} onClose={() => setModalOpen(false)}
-          onSave={() => { setModalOpen(false); qc.invalidateQueries({ queryKey: ['kanban'] }); }} />
+        <LeadModal
+          onClose={() => setModalOpen(false)}
+          onSave={() => {
+            setModalOpen(false);
+            qc.invalidateQueries({ queryKey: ["kanban"] });
+          }}
+        />
+      )}
+
+      {detailId && (
+        <LeadDetailPanel
+          leadId={detailId}
+          onClose={() => setDetailId(null)}
+          onUpdate={() => qc.invalidateQueries({ queryKey: ["kanban"] })}
+        />
       )}
 
       <ChatBot />
