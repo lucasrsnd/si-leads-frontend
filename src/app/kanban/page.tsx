@@ -197,17 +197,15 @@ export default function KanbanPage() {
   );
 
   const filteredBoard: KanbanBoard | undefined = board
-    ? (Object.fromEntries(
-        COLUMNS.map((col) => [
-          col,
-          myLeads
-            ? (board[col] || []).filter(
-                (l) => l.assignedTo?.id === user?.id || l.userId === user?.id,
-              )
-            : board[col] || [],
-        ]),
-      ) as KanbanBoard)
-    : undefined;
+  ? (Object.fromEntries(
+      COLUMNS.map((col) => [
+        col,
+        myLeads
+          ? (board[col] || []).filter((l) => l.assignedTo?.id === user?.id || l.userId === user?.id)
+          : board[col] || [],
+      ])
+    ) as unknown as KanbanBoard)
+  : undefined;
 
   const allLeads = board ? Object.values(board).flat() : [];
   const activeLead = activeId ? allLeads.find((l) => l.id === activeId) : null;
